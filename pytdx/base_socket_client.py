@@ -11,20 +11,24 @@ import sys
 import pandas as pd
 
 if __name__ == '__main__':
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+    sys.path.insert(0, os.path.dirname(
+        os.path.dirname(os.path.realpath(__file__))))
 
 from pytdx.log import DEBUG, log
 from pytdx.errors import TdxConnectionError, TdxFunctionCallError
 
-import threading, datetime
+import threading
+import datetime
 import time
 from pytdx.heartbeat import HqHeartBeatThread
 import functools
 from pytdx.parser.raw_parser import RawParser
 
+
 CONNECT_TIMEOUT = 5.000
 RECV_HEADER_LEN = 0x10
 DEFAULT_HEARTBEAT_INTERVAL = 10.0
+
 
 """
 In [7]: 0x7e
@@ -66,7 +70,8 @@ def update_last_ack_time(func):
                             return ret
                     except Exception as retry_e:
                         current_exception = retry_e
-                        log.debug("hit exception on *retry* req exception is " + str(retry_e))
+                        log.debug(
+                            "hit exception on *retry* req exception is " + str(retry_e))
 
                 log.debug("perform auto retry on req ")
 
@@ -81,7 +86,6 @@ def update_last_ack_time(func):
         如果raise_exception=False 返回None
         """
         return ret
-
     return wrapper
 
 
@@ -97,7 +101,6 @@ class DefaultRetryStrategy(RetryStrategy):
     返回下次重试的间隔时间, 单位为秒，我们会使用 time.sleep在这里同步等待之后进行重新connect,然后再重新发起
     源请求，直到gen结束。
     """
-
     @classmethod
     def gen(cls):
         # 默认重试4次 ... 时间间隔如下
@@ -122,28 +125,9 @@ class TrafficStatSocket(socket.socket):
         self.last_api_send_bytes = 0  # 最近的一次api调用的发送字节数
         self.last_api_recv_bytes = 0  # 最近一次api调用的接收字节数
 
-    def send(self, data, flags=None):
-        nsended = super(TrafficStatSocket, self).send(data)
-        if self.first_pkg_send_time is None:
-            self.first_pkg_send_time = datetime.datetime.now()
-        self.send_pkg_num += 1
-        self.send_pkg_bytes += nsended
-        return nsended
-
-    def recv(self, buffersize, flags=None):
-        head_buf = super(TrafficStatSocket, self).recv(buffersize)
-        self.recv_pkg_num += 1
-        self.recv_pkg_bytes += buffersize
-        return head_buf
-
-    def set_last_api_sent(self,num):
-        self.last_api_recv_bytes = num
-
-    def set_last_api_received(self,num):
-        self.last_api_recv_bytes = num
-
 
 class BaseSocketClient(object):
+
     def __init__(self, multithread=False, heartbeat=False, auto_retry=False, raise_exception=False):
         self.need_setup = True
         if multithread or heartbeat:
@@ -168,7 +152,7 @@ class BaseSocketClient(object):
         # 是否在函数调用出错的时候抛出异常
         self.raise_exception = raise_exception
 
-    def connect(self, ip='101.227.73.20', port=7709):
+    def connect(self, ip='101.227.73.20', port=7709, time_out=CONNECT_TIMEOUT):
         """
 
         :param ip:  服务器ip 地址
@@ -177,7 +161,7 @@ class BaseSocketClient(object):
         """
 
         self.client = TrafficStatSocket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client.settimeout(CONNECT_TIMEOUT)
+        self.client.settimeout(time_out)
         log.debug("connecting to server : %s on port :%d" % (ip, port))
         try:
             self.ip = ip
@@ -201,7 +185,8 @@ class BaseSocketClient(object):
 
         if self.heartbeat:
             self.stop_event = threading.Event()
-            self.heartbeat_thread = HqHeartBeatThread(self, self.stop_event, self.heartbeat_interval)
+            self.heartbeat_thread = HqHeartBeatThread(
+                self, self.stop_event, self.heartbeat_interval)
             self.heartbeat_thread.start()
         return self
 
@@ -236,7 +221,8 @@ class BaseSocketClient(object):
         :return:
         """
         if self.client.first_pkg_send_time is not None:
-            total_seconds = (datetime.datetime.now() - self.client.first_pkg_send_time).total_seconds()
+            total_seconds = (datetime.datetime.now() -
+                             self.client.first_pkg_send_time).total_seconds()
             if total_seconds != 0:
                 send_bytes_per_second = self.client.send_pkg_bytes // total_seconds
                 recv_bytes_per_second = self.client.recv_pkg_bytes // total_seconds
